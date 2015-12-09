@@ -95,7 +95,7 @@
                 
                 // Support for legacy 32 bit mode: here we use 32 or 64 bit version
                 // alternatively, as internal (common) version is not exposed
-                _unzFile= (_legacy32BitMode ? unzOpen(path) : unzOpen64(path));
+                _unzFile= unzOpen(path);
 				if (_unzFile == NULL)
                     @throw [OZZipException zipExceptionWithError:OZ_ERROR_NO_SUCH_FILE reason:@"Can't open '%@'", _fileName];
 				break;
@@ -103,7 +103,7 @@
 			case OZZipFileModeCreate:
                 
                 // Support for legacy 32 bit mode: here we use the common version
-                _zipFile= zipOpen3(path, APPEND_STATUS_CREATE, 0, NULL, NULL);
+                _zipFile= zipOpen2(path, APPEND_STATUS_CREATE, NULL, NULL);
 				if (_zipFile == NULL)
                     @throw [OZZipException zipExceptionWithError:OZ_ERROR_NO_SUCH_FILE reason:@"Can't open '%@'", _fileName];
 				break;
@@ -111,7 +111,7 @@
 			case OZZipFileModeAppend:
                 
                 // Support for legacy 32 bit mode: here we use the common version
-                _zipFile= zipOpen3(path, APPEND_STATUS_ADDINZIP, 0, NULL, NULL);
+                _zipFile= zipOpen2(path, APPEND_STATUS_ADDINZIP, NULL, NULL);
 				if (_zipFile == NULL)
                     @throw [OZZipException zipExceptionWithError:OZ_ERROR_NO_SUCH_FILE reason:@"Can't open '%@'", _fileName];
 				break;
@@ -168,15 +168,14 @@
 	
     // Support for legacy 32 bit mode: here we use the common version,
     // passing a flag to tell if it is a 32 or 64 bit file
-	int err= zipOpenNewFileInZip3_64(_zipFile,
+	int err= zipOpenNewFileInZip3(_zipFile,
 									 [fileNameInZip cStringUsingEncoding:NSUTF8StringEncoding],
 									 &zi,
 									 NULL, 0, NULL, 0, NULL,
 									 (compressionLevel != OZZipCompressionLevelNone) ? Z_DEFLATED : 0,
 									 compressionLevel, 0,
 									 -MAX_WBITS, DEF_MEM_LEVEL, Z_DEFAULT_STRATEGY,
-                                     NULL, 0,
-                                     (_legacy32BitMode ? 0 : 1));
+                                     NULL, 0);
     
     if (err != ZIP_OK)
 		@throw [OZZipException zipExceptionWithError:err reason:@"Error opening '%@' in zipfile", fileNameInZip];
@@ -203,15 +202,14 @@
 	
     // Support for legacy 32 bit mode: here we use the common version,
     // passing a flag to tell if it is a 32 or 64 bit file
-	int err= zipOpenNewFileInZip3_64(_zipFile,
+	int err= zipOpenNewFileInZip3(_zipFile,
 									 [fileNameInZip cStringUsingEncoding:NSUTF8StringEncoding],
 									 &zi,
 									 NULL, 0, NULL, 0, NULL,
 									 (compressionLevel != OZZipCompressionLevelNone) ? Z_DEFLATED : 0,
 									 compressionLevel, 0,
 									 -MAX_WBITS, DEF_MEM_LEVEL, Z_DEFAULT_STRATEGY,
-									 NULL, 0,
-                                     (_legacy32BitMode ? 0 : 1));
+									 NULL, 0);
     
 	if (err != ZIP_OK)
 		@throw [OZZipException zipExceptionWithError:err reason:@"Error opening '%@' in zipfile", fileNameInZip];
@@ -238,15 +236,14 @@
 	
     // Support for legacy 32 bit mode: here we use the common version,
     // passing a flag to tell if it is a 32 or 64 bit file
-	int err= zipOpenNewFileInZip3_64(_zipFile,
+	int err= zipOpenNewFileInZip3(_zipFile,
 									 [fileNameInZip cStringUsingEncoding:NSUTF8StringEncoding],
 									 &zi,
 									 NULL, 0, NULL, 0, NULL,
 									 (compressionLevel != OZZipCompressionLevelNone) ? Z_DEFLATED : 0,
 									 compressionLevel, 0,
 									 -MAX_WBITS, DEF_MEM_LEVEL, Z_DEFAULT_STRATEGY,
-									 [password cStringUsingEncoding:NSUTF8StringEncoding], crc32,
-                                     (_legacy32BitMode ? 0 : 1));
+									 [password cStringUsingEncoding:NSUTF8StringEncoding], crc32);
     
 	if (err != ZIP_OK)
 		@throw [OZZipException zipExceptionWithError:err reason:@"Error opening '%@' in zipfile", fileNameInZip];
@@ -327,9 +324,6 @@
     if (_mode != OZZipFileModeUnzip)
         @throw [OZZipException zipExceptionWithReason:@"Operation permitted only in Unzip mode"];
     
-    // Support for legacy 32 bit mode: here we use the 32 or 64 bit
-    // version alternatively, as there is not internal (common) version
-    if (_legacy32BitMode) {
         unz_global_info gi;
         
         int err= unzGetGlobalInfo(_unzFile, &gi);
@@ -337,16 +331,6 @@
             @throw [OZZipException zipExceptionWithError:err reason:@"Error getting global info of '%@'", _fileName];
         
         return gi.number_entry;
-        
-    } else {
-        unz_global_info64 gi;
-        
-        int err= unzGetGlobalInfo64(_unzFile, &gi);
-        if (err != UNZ_OK)
-            @throw [OZZipException zipExceptionWithError:err reason:@"Error getting global info of '%@'", _fileName];
-        
-        return (NSUInteger) gi.number_entry;
-    }
 }
 
 - (NSArray *) listFileInZipInfos {
@@ -373,11 +357,11 @@
 		@throw [OZZipException zipExceptionWithReason:@"Operation permitted only in Unzip mode"];
 
 	char filename_inzip[FILE_IN_ZIP_MAX_NAME_LENGTH];
-	unz_file_info64 file_info;
+	unz_file_info file_info;
 	
     // Support for legacy 32 bit mode: here we use the 64 bit version,
     // as it also internally called from the 32 bit version
-	int err= unzGetCurrentFileInfo64(_unzFile, &file_info, filename_inzip, sizeof(filename_inzip), NULL, 0, NULL, 0);
+	int err= unzGetCurrentFileInfo(_unzFile, &file_info, filename_inzip, sizeof(filename_inzip), NULL, 0, NULL, 0);
 	if (err != UNZ_OK)
 		@throw [OZZipException zipExceptionWithError:err reason:@"Error getting current file info of '%@'", _fileName];
 	
@@ -486,11 +470,11 @@
 		@throw [OZZipException zipExceptionWithReason:@"Operation permitted only in Unzip mode"];
 
 	char filename_inzip[FILE_IN_ZIP_MAX_NAME_LENGTH];
-	unz_file_info64 file_info;
+	unz_file_info file_info;
 	
     // Support for legacy 32 bit mode: here we use the 64 bit version,
     // as it also internally called from the 32 bit version
-	int err= unzGetCurrentFileInfo64(_unzFile, &file_info, filename_inzip, sizeof(filename_inzip), NULL, 0, NULL, 0);
+	int err= unzGetCurrentFileInfo(_unzFile, &file_info, filename_inzip, sizeof(filename_inzip), NULL, 0, NULL, 0);
 	if (err != UNZ_OK)
 		@throw [OZZipException zipExceptionWithError:err reason:@"Error getting current file info of '%@'", _fileName];
 	
@@ -508,11 +492,11 @@
 		@throw [OZZipException zipExceptionWithReason:@"Operation permitted only in Unzip mode"];
 	
 	char filename_inzip[FILE_IN_ZIP_MAX_NAME_LENGTH];
-	unz_file_info64 file_info;
+	unz_file_info file_info;
 	
     // Support for legacy 32 bit mode: here we use the 64 bit version,
     // as it also internally called from the 32 bit version
-	int err= unzGetCurrentFileInfo64(_unzFile, &file_info, filename_inzip, sizeof(filename_inzip), NULL, 0, NULL, 0);
+	int err= unzGetCurrentFileInfo(_unzFile, &file_info, filename_inzip, sizeof(filename_inzip), NULL, 0, NULL, 0);
 	if (err != UNZ_OK)
 		@throw [OZZipException zipExceptionWithError:err reason:@"Error getting current file info of '%@'", _fileName];
 	
